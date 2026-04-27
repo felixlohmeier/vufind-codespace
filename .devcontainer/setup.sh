@@ -99,10 +99,15 @@ sudo mysql -uroot "${DB_NAME}" < "${VUFIND_HOME}/module/VuFind/sql/mysql.sql"
 echo "--- Configuring VuFind ---"
 VUFIND_CONFIG="${VUFIND_LOCAL_DIR}/config/vufind/config.ini"
 if [ -f "${VUFIND_CONFIG}" ]; then
-    # Uncomment and update the connection line (handles both commented/uncommented variants)
+    # Apply key values that are otherwise left for /Install/Home fixes.
+    # Keep both legacy 'connection' and current '[Database] database' DSNs in sync.
     sudo sed -i \
+        -e 's|^autoConfigure\s*=\s*true|autoConfigure = false|' \
+        -e 's|^url\s*=\s*http://library\.myuniversity\.edu/vufind|url = http://localhost/vufind|' \
         -e 's|^;connection = mysql://root@localhost/vufind|connection = mysql://vufind:vufind@localhost/vufind|' \
         -e 's|^connection = mysql://.*|connection = mysql://vufind:vufind@localhost/vufind|' \
+        -e 's|^database\s*=\s*mysql://root@localhost/vufind|database          = mysql://vufind:vufind@localhost/vufind|' \
+        -e 's|^database\s*=\s*mysql://.*@localhost/vufind|database          = mysql://vufind:vufind@localhost/vufind|' \
         "${VUFIND_CONFIG}"
 fi
 
