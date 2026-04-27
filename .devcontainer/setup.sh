@@ -4,6 +4,38 @@
 
 set -e
 
+log_debug() {
+    echo "[DEBUG] $*"
+}
+
+print_config_indicators() {
+    local cfg="$1"
+    local label="$2"
+
+    log_debug "${label}: config path = ${cfg}"
+    if [ -f "${cfg}" ]; then
+        log_debug "${label}: config exists"
+        log_debug "${label}: metadata = $(ls -l "${cfg}")"
+        if command -v sha256sum >/dev/null 2>&1; then
+            log_debug "${label}: sha256 = $(sha256sum "${cfg}" | awk '{print $1}')"
+        fi
+
+        awk -v tag="${label}" '
+            /^\[Catalog\]/{in_catalog=1;in_db=0;next}
+            /^\[Database\]/{in_db=1;in_catalog=0;next}
+            /^\[/{in_catalog=0;in_db=0}
+            /^[[:space:]]*autoConfigure[[:space:]]*=/ {print "[DEBUG] " tag ": " $0}
+            /^[[:space:]]*url[[:space:]]*=/ {print "[DEBUG] " tag ": " $0}
+            in_catalog && /^[[:space:]]*driver[[:space:]]*=/ {print "[DEBUG] " tag ": " $0}
+            in_db && /^[[:space:]]*database[[:space:]]*=/ {print "[DEBUG] " tag ": " $0}
+            /^[[:space:]]*encrypt_ils_password[[:space:]]*=/ {print "[DEBUG] " tag ": " $0}
+            /^[[:space:]]*ils_encryption_key[[:space:]]*=/ {print "[DEBUG] " tag ": " $0}
+        ' "${cfg}"
+    else
+        log_debug "${label}: config missing"
+    fi
+}
+
 VUFIND_VERSION="11.0.2"
 VUFIND_HOME="/usr/local/vufind"
 VUFIND_LOCAL_DIR="${VUFIND_HOME}/local"
@@ -14,6 +46,9 @@ APP_USER="codespace"
 if ! id -u "${APP_USER}" >/dev/null 2>&1; then
     APP_USER="$(id -un)"
 fi
+
+log_debug "Startup context: user=$(id -un) uid=$(id -u) pwd=$(pwd)"
+log_debug "Variables: VUFIND_HOME=${VUFIND_HOME} VUFIND_LOCAL_DIR=${VUFIND_LOCAL_DIR} APP_USER=${APP_USER}"
 
 echo "=== Installing VuFind ${VUFIND_VERSION} ==="
 
@@ -93,11 +128,17 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 
-sudo mysql -uroot "${DB_NAME}" < "${VUFIND_HOME}/module/VuFind/sql/mysql.sql"
+if ! sudo mysql -uroot "${DB_NAME}" < "${VUFIND_HOME}/module/VuFind/sql/mysql.sql"; then
+    echo "WARNING: Initial schema import returned a non-zero status (often because tables already exist)."
+    echo "         Continuing setup so config rewriting and service startup still run."
+fi
 
 # ── 11. Configure VuFind database connection in config.ini ────────────────────
 echo "--- Configuring VuFind ---"
 VUFIND_CONFIG="${VUFIND_LOCAL_DIR}/config/vufind/config.ini"
+log_debug "Section 11 reached"
+log_debug "Directory metadata: $(ls -ld "${VUFIND_LOCAL_DIR}" "${VUFIND_LOCAL_DIR}/config" "${VUFIND_LOCAL_DIR}/config/vufind" 2>/dev/null | tr '\n' ' ' || true)"
+print_config_indicators "${VUFIND_CONFIG}" "before"
 if [ -f "${VUFIND_CONFIG}" ]; then
     # Apply key values that are otherwise left for /Install/Home fixes.
     # Use a line-based section-aware rewrite to avoid brittle regex side effects.
@@ -158,8 +199,12 @@ if [ -f "${VUFIND_CONFIG}" ]; then
                 print line
             }
         ' "${VUFIND_CONFIG}" > "${TMP_CONFIG}"
+    log_debug "Temporary rewritten config: ${TMP_CONFIG}"
     sudo install -o www-data -g www-data -m 644 "${TMP_CONFIG}" "${VUFIND_CONFIG}"
     rm -f "${TMP_CONFIG}"
+    print_config_indicators "${VUFIND_CONFIG}" "after"
+else
+    echo "WARNING: VuFind config not found at expected path: ${VUFIND_CONFIG}"
 fi
 
 # ── 12. Start Apache ──────────────────────────────────────────────────────────
