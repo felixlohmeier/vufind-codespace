@@ -1,0 +1,14 @@
+{
+    "name": "VuFind",
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+    "postStartCommand": "bash .devcontainer/start-services.sh",
+    "forwardPorts": [80, 8983],
+    "portsAttributes": {
+        "80": {
+            "label": "VuFind"
+        },
+        "8983": {
+            "label": "Solr Admin UI"
+        }
+    }
+}
