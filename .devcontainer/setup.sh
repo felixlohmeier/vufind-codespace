@@ -105,8 +105,26 @@ sudo service apache2 restart
 # ── 13. Start Solr ────────────────────────────────────────────────────────────
 echo "--- Starting Solr ---"
 cd "${VUFIND_HOME}"
-sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start \
-    || echo "WARNING: Solr could not be started. Run manually: cd /usr/local/vufind && sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start"
+sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start --force \
+    || echo "WARNING: Solr could not be started. Run manually: cd /usr/local/vufind && sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start --force"
+
+# ── 14. Index test records ────────────────────────────────────────────────────
+echo "--- Waiting for Solr to be ready ---"
+for i in $(seq 1 30); do
+    if curl -sf http://localhost:8983/solr/ > /dev/null 2>&1; then
+        echo "Solr is ready."
+        break
+    fi
+    sleep 2
+done
+
+echo "--- Indexing test records ---"
+export JAVA_HOME="/usr/lib/jvm/default-java"
+export VUFIND_HOME="/usr/local/vufind"
+export VUFIND_LOCAL_DIR="/usr/local/vufind/local"
+sudo -E "${VUFIND_HOME}/import-marc.sh" "${VUFIND_HOME}/tests/data/journals.mrc"      || true
+sudo -E "${VUFIND_HOME}/import-marc.sh" "${VUFIND_HOME}/tests/data/geo.mrc"           || true
+sudo -E "${VUFIND_HOME}/import-marc.sh" "${VUFIND_HOME}/tests/data/authoritybibs.mrc" || true
 
 echo ""
 echo "=== VuFind ${VUFIND_VERSION} installation complete! ==="
