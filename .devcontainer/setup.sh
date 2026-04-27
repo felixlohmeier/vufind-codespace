@@ -10,7 +10,7 @@ VUFIND_LOCAL_DIR="${VUFIND_HOME}/local"
 DB_NAME="vufind"
 DB_USER="vufind"
 DB_PASS="vufind"
-SOLR_USER="solr"
+SOLR_USER="codespace"
 
 echo "=== Installing VuFind ${VUFIND_VERSION} ==="
 
@@ -30,7 +30,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q mariadb-server
 # Pre-seeding the answer prevents the prompt from blocking the installation.
 echo "--- Pre-seeding debconf ---"
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q debconf-utils
-echo "vufind vufind/solr-user string solr" | sudo debconf-set-selections
+echo "vufind vufind/solr-user string ${SOLR_USER}" | sudo debconf-set-selections
 
 # ── 4. Download VuFind DEB package ────────────────────────────────────────────
 echo "--- Downloading VuFind DEB ---"
@@ -183,11 +183,14 @@ sudo service apache2 restart
 # ── 13. Start Solr ────────────────────────────────────────────────────────────
 echo "--- Starting Solr ---"
 cd "${VUFIND_HOME}"
-if [ "$(id -u)" -eq 0 ]; then
-    runuser -u "${SOLR_USER}" -- env SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
+sudo mkdir -p "${VUFIND_HOME}/solr/vufind/logs" 2>/dev/null || true
+sudo chown -R "${SOLR_USER}:${SOLR_USER}" "${VUFIND_HOME}/solr/vufind" 2>/dev/null || true
+
+if [ "$(id -un)" = "${SOLR_USER}" ]; then
+    env SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
     SOLR_EXIT_CODE=$?
 else
-    sudo -u "${SOLR_USER}" env SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
+    sudo -n -u "${SOLR_USER}" env SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
     SOLR_EXIT_CODE=$?
 fi
 
