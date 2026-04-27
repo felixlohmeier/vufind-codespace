@@ -100,15 +100,60 @@ echo "--- Configuring VuFind ---"
 VUFIND_CONFIG="${VUFIND_LOCAL_DIR}/config/vufind/config.ini"
 if [ -f "${VUFIND_CONFIG}" ]; then
     # Apply key values that are otherwise left for /Install/Home fixes.
-    # Keep both legacy 'connection' and current '[Database] database' DSNs in sync.
-    sudo sed -i \
-        -e 's|^autoConfigure\s*=\s*true|autoConfigure = false|' \
-        -e 's|^url\s*=\s*http://library\.myuniversity\.edu/vufind|url = http://localhost/vufind|' \
-        -e 's|^;connection = mysql://root@localhost/vufind|connection = mysql://vufind:vufind@localhost/vufind|' \
-        -e 's|^connection = mysql://.*|connection = mysql://vufind:vufind@localhost/vufind|' \
-        -e 's|^database\s*=\s*mysql://root@localhost/vufind|database          = mysql://vufind:vufind@localhost/vufind|' \
-        -e 's|^database\s*=\s*mysql://.*@localhost/vufind|database          = mysql://vufind:vufind@localhost/vufind|' \
-        "${VUFIND_CONFIG}"
+    # Use a line-based section-aware rewrite to avoid brittle regex side effects.
+    ILS_ENCRYPTION_KEY="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)"
+    TMP_CONFIG="$(mktemp)"
+    awk \
+        -v db_user="${DB_USER}" \
+        -v db_pass="${DB_PASS}" \
+        -v db_name="${DB_NAME}" \
+        -v ils_key="${ILS_ENCRYPTION_KEY}" '
+            BEGIN {
+                in_catalog = 0
+                in_database = 0
+            }
+
+            /^\[[^]]+\]/ {
+                in_catalog = ($0 == "[Catalog]")
+                in_database = ($0 == "[Database]")
+            }
+
+            /^[[:space:]]*autoConfigure[[:space:]]*=[[:space:]]*true[[:space:]]*$/ {
+                print "autoConfigure = false"
+                next
+            }
+
+            /^[[:space:]]*url[[:space:]]*=[[:space:]]*"?http:\/\/library\.myuniversity\.edu\/vufind"?[[:space:]]*$/ {
+                print "url = http://localhost/vufind"
+                next
+            }
+
+            in_catalog && /^[[:space:]]*driver[[:space:]]*=/ {
+                print "driver          = NoILS"
+                next
+            }
+
+            in_database && /^[[:space:]]*database[[:space:]]*=/ {
+                print "database          = mysql://" db_user ":" db_pass "@localhost/" db_name
+                next
+            }
+
+            /^[[:space:]]*encrypt_ils_password[[:space:]]*=/ {
+                print "encrypt_ils_password = true"
+                next
+            }
+
+            /^[[:space:]]*ils_encryption_key[[:space:]]*=/ {
+                print "ils_encryption_key = \"" ils_key "\""
+                next
+            }
+
+            {
+                print
+            }
+        ' "${VUFIND_CONFIG}" > "${TMP_CONFIG}"
+    sudo install -o www-data -g www-data -m 644 "${TMP_CONFIG}" "${VUFIND_CONFIG}"
+    rm -f "${TMP_CONFIG}"
 fi
 
 # ── 12. Start Apache ──────────────────────────────────────────────────────────
