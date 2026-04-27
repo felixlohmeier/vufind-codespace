@@ -141,6 +141,11 @@ if [ -f "${VUFIND_CONFIG}" ]; then
                 next
             }
 
+            line ~ /^[[:space:]]*available[[:space:]]*=[[:space:]]*false[[:space:]]*$/ {
+                print "available       = true"
+                next
+            }
+
             line ~ /^[[:space:]]*url[[:space:]]*=[[:space:]]*"?http:\/\/library\.myuniversity\.edu\/vufind"?[[:space:]]*$/ {
                 print "url = http://localhost/vufind"
                 next
@@ -174,6 +179,34 @@ if [ -f "${VUFIND_CONFIG}" ]; then
     rm -f "${TMP_CONFIG}"
 else
     echo "WARNING: VuFind config not found at expected path: ${VUFIND_CONFIG}"
+fi
+
+# Configure NoILS to avoid global offline mode message on the homepage.
+echo "--- Configuring NoILS ---"
+VUFIND_NOILS_LOCAL="${VUFIND_LOCAL_DIR}/config/vufind/NoILS.ini"
+VUFIND_NOILS_TEMPLATE="${VUFIND_HOME}/config/vufind/NoILS.ini"
+if [ ! -f "${VUFIND_NOILS_LOCAL}" ] && [ -f "${VUFIND_NOILS_TEMPLATE}" ]; then
+    sudo install -o www-data -g www-data -m 644 \
+        "${VUFIND_NOILS_TEMPLATE}" \
+        "${VUFIND_NOILS_LOCAL}"
+fi
+
+if [ -f "${VUFIND_NOILS_LOCAL}" ]; then
+    TMP_NOILS="$(mktemp)"
+    awk '
+        /^[[:space:]]*mode[[:space:]]*=/ {
+            print "mode = ils-none"
+            next
+        }
+
+        {
+            print $0
+        }
+    ' "${VUFIND_NOILS_LOCAL}" > "${TMP_NOILS}"
+    sudo install -o www-data -g www-data -m 644 "${TMP_NOILS}" "${VUFIND_NOILS_LOCAL}"
+    rm -f "${TMP_NOILS}"
+else
+    echo "WARNING: NoILS config not found at expected path: ${VUFIND_NOILS_LOCAL}"
 fi
 
 # ── 12. Start Apache ──────────────────────────────────────────────────────────
