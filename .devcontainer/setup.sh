@@ -113,43 +113,49 @@ if [ -f "${VUFIND_CONFIG}" ]; then
                 in_database = 0
             }
 
-            /^\[[^]]+\]/ {
-                in_catalog = ($0 == "[Catalog]")
-                in_database = ($0 == "[Database]")
+            {
+                line = $0
+                # Normalise optional CR from CRLF files so strict matches still work.
+                sub(/\r$/, "", line)
             }
 
-            /^[[:space:]]*autoConfigure[[:space:]]*=[[:space:]]*true[[:space:]]*$/ {
+            line ~ /^\[[^]]+\][[:space:]]*$/ {
+                in_catalog = (line == "[Catalog]")
+                in_database = (line == "[Database]")
+            }
+
+            line ~ /^[[:space:]]*autoConfigure[[:space:]]*=[[:space:]]*true[[:space:]]*$/ {
                 print "autoConfigure = false"
                 next
             }
 
-            /^[[:space:]]*url[[:space:]]*=[[:space:]]*"?http:\/\/library\.myuniversity\.edu\/vufind"?[[:space:]]*$/ {
+            line ~ /^[[:space:]]*url[[:space:]]*=[[:space:]]*"?http:\/\/library\.myuniversity\.edu\/vufind"?[[:space:]]*$/ {
                 print "url = http://localhost/vufind"
                 next
             }
 
-            in_catalog && /^[[:space:]]*driver[[:space:]]*=/ {
+            in_catalog && line ~ /^[[:space:]]*driver[[:space:]]*=/ {
                 print "driver          = NoILS"
                 next
             }
 
-            in_database && /^[[:space:]]*database[[:space:]]*=/ {
+            in_database && line ~ /^[[:space:]]*database[[:space:]]*=/ {
                 print "database          = mysql://" db_user ":" db_pass "@localhost/" db_name
                 next
             }
 
-            /^[[:space:]]*encrypt_ils_password[[:space:]]*=/ {
+            line ~ /^[[:space:]]*encrypt_ils_password[[:space:]]*=/ {
                 print "encrypt_ils_password = true"
                 next
             }
 
-            /^[[:space:]]*ils_encryption_key[[:space:]]*=/ {
+            line ~ /^[[:space:]]*ils_encryption_key[[:space:]]*=/ {
                 print "ils_encryption_key = \"" ils_key "\""
                 next
             }
 
             {
-                print
+                print line
             }
         ' "${VUFIND_CONFIG}" > "${TMP_CONFIG}"
     sudo install -o www-data -g www-data -m 644 "${TMP_CONFIG}" "${VUFIND_CONFIG}"
