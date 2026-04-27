@@ -5,8 +5,7 @@
     "forwardPorts": [80, 8983],
     "portsAttributes": {
         "80": {
-            "label": "VuFind",
-            "onAutoForward": "openPreview"
+            "label": "VuFind"
         },
         "8983": {
             "label": "Solr Admin UI"

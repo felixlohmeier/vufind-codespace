@@ -87,6 +87,16 @@ echo "--- Running VuFind installer ---"
 cd "${VUFIND_HOME}"
 printf '\n\n\n\n\n' | sudo php install.php || true
 
+# If install.php did not create config.ini (e.g. because it ran non-interactively
+# without fully completing), fall back to copying the global config template.
+if [ ! -f "${VUFIND_LOCAL_DIR}/config/vufind/config.ini" ]; then
+    log_debug "install.php did not create config.ini; copying from global template"
+    sudo mkdir -p "${VUFIND_LOCAL_DIR}/config/vufind"
+    sudo install -o www-data -g www-data -m 644 \
+        "${VUFIND_HOME}/config/vufind/config.ini" \
+        "${VUFIND_LOCAL_DIR}/config/vufind/config.ini"
+fi
+
 # ── 7. Set file permissions for Apache ────────────────────────────────────────
 echo "--- Setting file permissions ---"
 sudo chown -R www-data:www-data "${VUFIND_LOCAL_DIR}/cache"
