@@ -105,9 +105,8 @@ sudo service apache2 restart
 # ── 13. Start Solr ────────────────────────────────────────────────────────────
 echo "--- Starting Solr ---"
 cd "${VUFIND_HOME}"
-sudo -E -u www-data SOLR_ULIMIT_CHECKS=false ./solr.sh start \
-    || sudo -E SOLR_ULIMIT_CHECKS=false ./solr.sh start \
-    || echo "WARNING: Solr could not be started. Run manually: cd /usr/local/vufind && ./solr.sh start"
+sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start \
+    || echo "WARNING: Solr could not be started. Run manually: cd /usr/local/vufind && sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start"
 
 echo ""
 echo "=== VuFind ${VUFIND_VERSION} installation complete! ==="

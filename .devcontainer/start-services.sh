@@ -15,7 +15,6 @@ sudo service apache2 start 2>/dev/null || true
 # Start Solr (only when VuFind is already installed)
 if [ -f "${VUFIND_HOME}/solr.sh" ]; then
     cd "${VUFIND_HOME}"
-    sudo -E -u www-data SOLR_ULIMIT_CHECKS=false ./solr.sh start 2>/dev/null \
-        || sudo -E SOLR_ULIMIT_CHECKS=false ./solr.sh start 2>/dev/null \
+    sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start 2>/dev/null \
         || true
 fi
