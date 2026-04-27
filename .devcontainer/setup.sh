@@ -66,7 +66,11 @@ sudo chmod 777 "${VUFIND_LOCAL_DIR}/cache/cli"
 
 # Ensure the non-root app user can start Solr and write logs/index data.
 sudo mkdir -p "${VUFIND_HOME}/solr/vufind/logs"
-sudo chown -R "${SOLR_USER}:${SOLR_USER}" "${VUFIND_HOME}/solr/vufind"
+SOLR_GROUP="$(id -gn "${SOLR_USER}" 2>/dev/null || true)"
+if [ -z "${SOLR_GROUP}" ]; then
+    SOLR_GROUP="${SOLR_USER}"
+fi
+sudo chown -R "${SOLR_USER}:${SOLR_GROUP}" "${VUFIND_HOME}/solr/vufind"
 
 # ── 8. Link Apache configuration (DEB may already have done this) ─────────────
 echo "--- Configuring Apache ---"
