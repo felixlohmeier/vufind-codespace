@@ -147,7 +147,12 @@ if [ -f "${VUFIND_CONFIG}" ]; then
             }
 
             line ~ /^[[:space:]]*url[[:space:]]*=[[:space:]]*"?http:\/\/library\.myuniversity\.edu\/vufind"?[[:space:]]*$/ {
-                print "url = http://localhost/vufind"
+                print "url = http://localhost"
+                next
+            }
+
+            line ~ /^[[:space:]]*url[[:space:]]*=[[:space:]]*"?http:\/\/localhost\/vufind"?[[:space:]]*$/ {
+                print "url = http://localhost"
                 next
             }
 
@@ -179,6 +184,41 @@ if [ -f "${VUFIND_CONFIG}" ]; then
     rm -f "${TMP_CONFIG}"
 else
     echo "WARNING: VuFind config not found at expected path: ${VUFIND_CONFIG}"
+fi
+
+# Map VuFind to Apache root path (/) instead of /vufind.
+echo "--- Configuring Apache path for root URL ---"
+VUFIND_HTTPD_LOCAL="${VUFIND_LOCAL_DIR}/httpd-vufind.conf"
+if [ -f "${VUFIND_HTTPD_LOCAL}" ]; then
+    TMP_HTTPD="$(mktemp)"
+    awk '
+        {
+            line = $0
+            sub(/\r$/, "", line)
+
+            if (line ~ /^AliasMatch \^\/vufind\/themes\//) {
+                sub(/\^\/vufind\/themes\//, "^/themes/", line)
+            }
+
+            if (line ~ /^AliasMatch \^\/vufind\/cache\//) {
+                sub(/\^\/vufind\/cache\//, "^/cache/", line)
+            }
+
+            if (line ~ /^Alias \/vufind /) {
+                line = "Alias / /usr/local/vufind/public/"
+            }
+
+            if (line ~ /^<Location \/vufind>/) {
+                line = "<Location />"
+            }
+
+            print line
+        }
+    ' "${VUFIND_HTTPD_LOCAL}" > "${TMP_HTTPD}"
+    sudo install -o www-data -g www-data -m 644 "${TMP_HTTPD}" "${VUFIND_HTTPD_LOCAL}"
+    rm -f "${TMP_HTTPD}"
+else
+    echo "WARNING: Apache VuFind config not found at expected path: ${VUFIND_HTTPD_LOCAL}"
 fi
 
 # Configure NoILS to avoid global offline mode message on the homepage.

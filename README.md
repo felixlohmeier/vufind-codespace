@@ -9,9 +9,9 @@ Click the green **Code** button on GitHub and choose **Open with Codespaces → 
 The first time the Codespace starts, the `postCreateCommand` will:
 
 1. Install **MariaDB**, **Apache**, **PHP** and **Java** (via the VuFind DEB package)
-2. Download and install VuFind 11.0.2 from the official DEB package
+2. Download and install VuFind from the official DEB package
 3. Run the VuFind installer to create the local configuration
-4. Create and populate the VuFind database (`vufind` / `vufind`)
+4. Create and populate the VuFind database
 5. Configure Apache and the VuFind database connection
 6. Start **MariaDB**, **Apache** and **Solr**
 
@@ -19,20 +19,17 @@ This takes roughly 5–10 minutes. Once complete, VuFind is available at:
 
 | Service | URL |
 |---------|-----|
-| VuFind  | <http://localhost/vufind> |
+| VuFind  | <http://localhost:80> |
 | Solr Admin UI | <http://localhost:8983/solr> |
 
 Both ports are automatically forwarded by Codespaces.
 
 ## After resuming a Codespace
 
-Services are restarted automatically via `postStartCommand` each time the Codespace is resumed.  
-If a service is not running you can restart it manually:
+Services are restarted automatically via `postStartCommand` each time the Codespace is resumed. If a service is not running you can restart it manually:
 
 ```bash
-sudo service mariadb start
-sudo service apache2 start
-cd /usr/local/vufind && SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
+bash .devcontainer/start-services.sh
 ```
 
 ## Installed components
@@ -41,5 +38,5 @@ cd /usr/local/vufind && SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="
 |-----------|-------------------|
 | VuFind    | 11.0.2 installed to `/usr/local/vufind` |
 | Database  | MariaDB — database `vufind`, user `vufind`, password `vufind` |
-| Web server | Apache 2 with `mod_rewrite` |
+| Webserver | Apache 2 with `mod_rewrite` |
 | Solr      | bundled with VuFind, listening on port 8983 |
