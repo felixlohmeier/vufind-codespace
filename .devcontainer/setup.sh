@@ -10,6 +10,10 @@ VUFIND_LOCAL_DIR="${VUFIND_HOME}/local"
 DB_NAME="vufind"
 DB_USER="vufind"
 DB_PASS="vufind"
+APP_USER="codespace"
+if ! id -u "${APP_USER}" >/dev/null 2>&1; then
+    APP_USER="$(id -un)"
+fi
 
 echo "=== Installing VuFind ${VUFIND_VERSION} ==="
 
@@ -54,6 +58,10 @@ sudo chown -R www-data:www-data "${VUFIND_LOCAL_DIR}/cache"
 sudo chown -R www-data:www-data "${VUFIND_LOCAL_DIR}/config"
 sudo mkdir -p "${VUFIND_LOCAL_DIR}/cache/cli"
 sudo chmod 777 "${VUFIND_LOCAL_DIR}/cache/cli"
+
+# Ensure the non-root app user can start Solr and write logs/index data.
+sudo mkdir -p "${VUFIND_HOME}/solr/vufind/logs"
+sudo chown -R "${APP_USER}:${APP_USER}" "${VUFIND_HOME}/solr/vufind"
 
 # ── 8. Link Apache configuration (DEB may already have done this) ─────────────
 echo "--- Configuring Apache ---"
@@ -105,8 +113,18 @@ sudo service apache2 restart
 # ── 13. Start Solr ────────────────────────────────────────────────────────────
 echo "--- Starting Solr ---"
 cd "${VUFIND_HOME}"
-sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start --force \
-    || echo "WARNING: Solr could not be started. Run manually: cd /usr/local/vufind && sudo SOLR_ULIMIT_CHECKS=false ./solr.sh start --force"
+if [ "$(id -u)" -eq 0 ]; then
+    runuser -u "${APP_USER}" -- env SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
+    SOLR_EXIT_CODE=$?
+else
+    env SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
+    SOLR_EXIT_CODE=$?
+fi
+
+if [ "${SOLR_EXIT_CODE}" -ne 0 ]; then
+    echo "WARNING: Solr could not be started."
+    echo "         Run manually: cd /usr/local/vufind && SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS=\"--force\" ./solr.sh start"
+fi
 
 # ── 14. Index test records ────────────────────────────────────────────────────
 echo "--- Waiting for Solr to be ready ---"

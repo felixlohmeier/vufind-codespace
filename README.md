@@ -32,7 +32,7 @@ If a service is not running you can restart it manually:
 ```bash
 sudo service mariadb start
 sudo service apache2 start
-cd /usr/local/vufind && ./solr.sh start
+cd /usr/local/vufind && SOLR_ULIMIT_CHECKS=false SOLR_ADDITIONAL_START_OPTIONS="--force" ./solr.sh start
 ```
 
 ## Installed components
